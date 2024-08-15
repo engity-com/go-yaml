@@ -85,13 +85,25 @@ type Marshaler interface {
 // See the documentation of Marshal for the format of tags and a list of
 // supported tag options.
 func Unmarshal(in []byte, out interface{}) (err error) {
-	return unmarshal(in, out, false)
+	return unmarshal(in, out, &settings{})
+}
+
+// UnknownFieldHandler is called if an unknown field was found.
+// This handler can decide what to do in this situation. If it does not
+// return any error this situation will be ignored.
+type UnknownFieldHandler func(node *Node, name reflect.Value, out reflect.Value) error
+
+// DefaultUnknownFieldHandler is the default implementation of UnknownFieldHandler.
+//
+// See UnknownFieldHandler for more details.
+func DefaultUnknownFieldHandler(node *Node, name reflect.Value, out reflect.Value) error {
+	return fmt.Errorf("line %d: field %s not found in type %s", node.Line, name.String(), out.Type())
 }
 
 // A Decoder reads and decodes YAML values from an input stream.
 type Decoder struct {
-	parser      *parser
-	knownFields bool
+	settings
+	parser *parser
 }
 
 // NewDecoder returns a new decoder that reads from r.
@@ -100,16 +112,22 @@ type Decoder struct {
 // data from r beyond the YAML values requested.
 func NewDecoder(r io.Reader) *Decoder {
 	var dec Decoder
-	p := newParserFromReader(r, &dec)
-	p.decoder = &dec
-	dec.parser = p
+	dec.parser = newParserFromReader(r, &dec.settings)
 	return &dec
 }
 
 // KnownFields ensures that the keys in decoded mappings to
 // exist as fields in the struct being decoded into.
+//
+// Deprecated: OnUnknownField(DefaultUnknownFieldHandler or nil) should be used instead.
+//
+//goland:noinspection GoDeprecation
 func (dec *Decoder) KnownFields(enable bool) {
-	dec.knownFields = enable
+	if enable {
+		dec.unknownField = DefaultUnknownFieldHandler
+	} else {
+		dec.unknownField = nil
+	}
 }
 
 // Decode reads the next YAML-encoded value from its input
@@ -118,8 +136,7 @@ func (dec *Decoder) KnownFields(enable bool) {
 // See the documentation for Unmarshal for details about the
 // conversion of YAML into a Go value.
 func (dec *Decoder) Decode(v interface{}) (err error) {
-	d := newDecoder()
-	d.knownFields = dec.knownFields
+	d := newDecoder(&dec.settings)
 	defer handleErr(&err)
 	node := dec.parser.parse()
 	if node == nil {
@@ -141,10 +158,7 @@ func (dec *Decoder) Decode(v interface{}) (err error) {
 // See the documentation for Unmarshal for details about the
 // conversion of YAML into a Go value.
 func (n *Node) Decode(v interface{}) (err error) {
-	d := newDecoder()
-	if n.decoder != nil {
-		d.knownFields = n.decoder.knownFields
-	}
+	d := newDecoder(&n.settings)
 	defer handleErr(&err)
 	out := reflect.ValueOf(v)
 	if out.Kind() == reflect.Ptr && !out.IsNil() {
@@ -157,9 +171,9 @@ func (n *Node) Decode(v interface{}) (err error) {
 	return nil
 }
 
-func unmarshal(in []byte, out interface{}, strict bool) (err error) {
+func unmarshal(in []byte, out interface{}, s *settings) (err error) {
 	defer handleErr(&err)
-	d := newDecoder()
+	d := newDecoder(s)
 	p := newParser(in, nil)
 	defer p.destroy()
 	node := p.parse()
@@ -265,7 +279,7 @@ func (n *Node) Encode(v interface{}) (err error) {
 	defer e.destroy()
 	e.marshalDoc("", reflect.ValueOf(v))
 	e.finish()
-	p := newParser(e.out, n.decoder)
+	p := newParser(e.out, &n.settings)
 	p.textless = true
 	defer p.destroy()
 	doc := p.parse()
@@ -416,7 +430,7 @@ type Node struct {
 	Line   int
 	Column int
 
-	decoder *Decoder
+	settings
 }
 
 // IsZero returns whether the node has all of its fields unset.
@@ -698,4 +712,14 @@ func isZero(v reflect.Value) bool {
 		return true
 	}
 	return false
+}
+
+type settings struct {
+	unknownField UnknownFieldHandler
+}
+
+// OnUnknownField is called when an unknown field was found.
+// See UnknownFieldHandler for more details.
+func (dec *settings) OnUnknownField(v UnknownFieldHandler) {
+	dec.unknownField = v
 }
