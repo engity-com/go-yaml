@@ -19,6 +19,8 @@ package yaml_test
 import (
 	"fmt"
 	"log"
+
+	"github.com/engity-com/go-yaml"
 )
 
 // An example showing how to unmarshal embedded

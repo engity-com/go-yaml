@@ -27,6 +27,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/engity-com/go-yaml"
 	. "gopkg.in/check.v1"
 )
 

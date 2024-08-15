@@ -19,11 +19,12 @@ package yaml_test
 import (
 	"bytes"
 	"fmt"
-	"os"
-
-	. "gopkg.in/check.v1"
 	"io"
+	"os"
 	"strings"
+
+	"github.com/engity-com/go-yaml"
+	. "gopkg.in/check.v1"
 )
 
 var nodeTests = []struct {

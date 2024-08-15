@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/engity-com/go-yaml"
 	. "gopkg.in/check.v1"
 )
 
