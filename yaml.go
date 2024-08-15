@@ -1,4 +1,5 @@
 //
+// Copyright (c) 2024 Engity GmbH
 // Copyright (c) 2011-2019 Canonical Ltd
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,8 +18,7 @@
 //
 // Source code and other details for the project are available at GitHub:
 //
-//   https://github.com/go-yaml/yaml
-//
+//	https://github.com/engity-com/go-yaml
 package yaml
 
 import (
@@ -75,16 +75,15 @@ type Marshaler interface {
 //
 // For example:
 //
-//     type T struct {
-//         F int `yaml:"a,omitempty"`
-//         B int
-//     }
-//     var t T
-//     yaml.Unmarshal([]byte("a: 1\nb: 2"), &t)
+//	type T struct {
+//	    F int `yaml:"a,omitempty"`
+//	    B int
+//	}
+//	var t T
+//	yaml.Unmarshal([]byte("a: 1\nb: 2"), &t)
 //
 // See the documentation of Marshal for the format of tags and a list of
 // supported tag options.
-//
 func Unmarshal(in []byte, out interface{}) (err error) {
 	return unmarshal(in, out, false)
 }
@@ -100,9 +99,11 @@ type Decoder struct {
 // The decoder introduces its own buffering and may read
 // data from r beyond the YAML values requested.
 func NewDecoder(r io.Reader) *Decoder {
-	return &Decoder{
-		parser: newParserFromReader(r),
-	}
+	var dec Decoder
+	p := newParserFromReader(r, &dec)
+	p.decoder = &dec
+	dec.parser = p
+	return &dec
 }
 
 // KnownFields ensures that the keys in decoded mappings to
@@ -141,6 +142,9 @@ func (dec *Decoder) Decode(v interface{}) (err error) {
 // conversion of YAML into a Go value.
 func (n *Node) Decode(v interface{}) (err error) {
 	d := newDecoder()
+	if n.decoder != nil {
+		d.knownFields = n.decoder.knownFields
+	}
 	defer handleErr(&err)
 	out := reflect.ValueOf(v)
 	if out.Kind() == reflect.Ptr && !out.IsNil() {
@@ -156,7 +160,7 @@ func (n *Node) Decode(v interface{}) (err error) {
 func unmarshal(in []byte, out interface{}, strict bool) (err error) {
 	defer handleErr(&err)
 	d := newDecoder()
-	p := newParser(in)
+	p := newParser(in, nil)
 	defer p.destroy()
 	node := p.parse()
 	if node != nil {
@@ -185,36 +189,35 @@ func unmarshal(in []byte, out interface{}, strict bool) (err error) {
 //
 // The field tag format accepted is:
 //
-//     `(...) yaml:"[<key>][,<flag1>[,<flag2>]]" (...)`
+//	`(...) yaml:"[<key>][,<flag1>[,<flag2>]]" (...)`
 //
 // The following flags are currently supported:
 //
-//     omitempty    Only include the field if it's not set to the zero
-//                  value for the type or to empty slices or maps.
-//                  Zero valued structs will be omitted if all their public
-//                  fields are zero, unless they implement an IsZero
-//                  method (see the IsZeroer interface type), in which
-//                  case the field will be excluded if IsZero returns true.
+//	omitempty    Only include the field if it's not set to the zero
+//	             value for the type or to empty slices or maps.
+//	             Zero valued structs will be omitted if all their public
+//	             fields are zero, unless they implement an IsZero
+//	             method (see the IsZeroer interface type), in which
+//	             case the field will be excluded if IsZero returns true.
 //
-//     flow         Marshal using a flow style (useful for structs,
-//                  sequences and maps).
+//	flow         Marshal using a flow style (useful for structs,
+//	             sequences and maps).
 //
-//     inline       Inline the field, which must be a struct or a map,
-//                  causing all of its fields or keys to be processed as if
-//                  they were part of the outer struct. For maps, keys must
-//                  not conflict with the yaml keys of other struct fields.
+//	inline       Inline the field, which must be a struct or a map,
+//	             causing all of its fields or keys to be processed as if
+//	             they were part of the outer struct. For maps, keys must
+//	             not conflict with the yaml keys of other struct fields.
 //
 // In addition, if the key is "-", the field is ignored.
 //
 // For example:
 //
-//     type T struct {
-//         F int `yaml:"a,omitempty"`
-//         B int
-//     }
-//     yaml.Marshal(&T{B: 2}) // Returns "b: 2\n"
-//     yaml.Marshal(&T{F: 1}} // Returns "a: 1\nb: 0\n"
-//
+//	type T struct {
+//	    F int `yaml:"a,omitempty"`
+//	    B int
+//	}
+//	yaml.Marshal(&T{B: 2}) // Returns "b: 2\n"
+//	yaml.Marshal(&T{F: 1}} // Returns "a: 1\nb: 0\n"
 func Marshal(in interface{}) (out []byte, err error) {
 	defer handleErr(&err)
 	e := newEncoder()
@@ -262,7 +265,7 @@ func (n *Node) Encode(v interface{}) (err error) {
 	defer e.destroy()
 	e.marshalDoc("", reflect.ValueOf(v))
 	e.finish()
-	p := newParser(e.out)
+	p := newParser(e.out, n.decoder)
 	p.textless = true
 	defer p.destroy()
 	doc := p.parse()
@@ -358,22 +361,21 @@ const (
 //
 // For example:
 //
-//     var person struct {
-//             Name    string
-//             Address yaml.Node
-//     }
-//     err := yaml.Unmarshal(data, &person)
-// 
+//	var person struct {
+//	        Name    string
+//	        Address yaml.Node
+//	}
+//	err := yaml.Unmarshal(data, &person)
+//
 // Or by itself:
 //
-//     var person Node
-//     err := yaml.Unmarshal(data, &person)
-//
+//	var person Node
+//	err := yaml.Unmarshal(data, &person)
 type Node struct {
 	// Kind defines whether the node is a document, a mapping, a sequence,
 	// a scalar value, or an alias to another node. The specific data type of
 	// scalar nodes may be obtained via the ShortTag and LongTag methods.
-	Kind  Kind
+	Kind Kind
 
 	// Style allows customizing the apperance of the node in the tree.
 	Style Style
@@ -413,6 +415,8 @@ type Node struct {
 	// These fields are not respected when encoding the node.
 	Line   int
 	Column int
+
+	decoder *Decoder
 }
 
 // IsZero returns whether the node has all of its fields unset.
@@ -420,7 +424,6 @@ func (n *Node) IsZero() bool {
 	return n.Kind == 0 && n.Style == 0 && n.Tag == "" && n.Value == "" && n.Anchor == "" && n.Alias == nil && n.Content == nil &&
 		n.HeadComment == "" && n.LineComment == "" && n.FootComment == "" && n.Line == 0 && n.Column == 0
 }
-
 
 // LongTag returns the long form of the tag that indicates the data type for
 // the node. If the Tag field isn't explicitly defined, one will be computed

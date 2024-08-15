@@ -1,4 +1,5 @@
 //
+// Copyright (c) 2024 Engity GmbH
 // Copyright (c) 2011-2019 Canonical Ltd
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,8 +17,9 @@
 package yaml_test
 
 import (
-	. "gopkg.in/check.v1"
 	"testing"
+
+	. "gopkg.in/check.v1"
 )
 
 func Test(t *testing.T) { TestingT(t) }
