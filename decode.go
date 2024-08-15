@@ -37,12 +37,12 @@ type parser struct {
 	anchors  map[string]*Node
 	doneInit bool
 	textless bool
-	decoder  *Decoder
+	settings *settings
 }
 
-func newParser(b []byte, dec *Decoder) *parser {
+func newParser(b []byte, s *settings) *parser {
 	p := parser{
-		decoder: dec,
+		settings: s,
 	}
 	if !yaml_parser_initialize(&p.parser) {
 		panic("failed to initialize YAML emitter")
@@ -54,9 +54,9 @@ func newParser(b []byte, dec *Decoder) *parser {
 	return &p
 }
 
-func newParserFromReader(r io.Reader, dec *Decoder) *parser {
+func newParserFromReader(r io.Reader, s *settings) *parser {
 	p := parser{
-		decoder: dec,
+		settings: s,
 	}
 	if !yaml_parser_initialize(&p.parser) {
 		panic("failed to initialize YAML emitter")
@@ -184,11 +184,13 @@ func (p *parser) node(kind Kind, defaultTag, tag, value string) *Node {
 		tag, _ = resolve("", value)
 	}
 	n := &Node{
-		Kind:    kind,
-		Tag:     tag,
-		Value:   value,
-		Style:   style,
-		decoder: p.decoder,
+		Kind:  kind,
+		Tag:   tag,
+		Value: value,
+		Style: style,
+	}
+	if p.settings != nil {
+		n.settings = *p.settings
 	}
 	if !p.textless {
 		n.Line = p.event.start_mark.line + 1
@@ -325,7 +327,7 @@ type decoder struct {
 	stringMapType  reflect.Type
 	generalMapType reflect.Type
 
-	knownFields bool
+	settings    *settings
 	uniqueKeys  bool
 	decodeCount int
 	aliasCount  int
@@ -344,11 +346,12 @@ var (
 	ptrTimeType    = reflect.TypeOf(&time.Time{})
 )
 
-func newDecoder() *decoder {
+func newDecoder(s *settings) *decoder {
 	d := &decoder{
 		stringMapType:  stringMapType,
 		generalMapType: generalMapType,
 		uniqueKeys:     true,
+		settings:       s,
 	}
 	d.aliases = make(map[*Node]bool)
 	return d
@@ -947,8 +950,10 @@ func (d *decoder) mappingStruct(n *Node, out reflect.Value) (good bool) {
 			value := reflect.New(elemType).Elem()
 			d.unmarshal(n.Content[i+1], value)
 			inlineMap.SetMapIndex(name, value)
-		} else if d.knownFields {
-			d.terrors = append(d.terrors, fmt.Sprintf("line %d: field %s not found in type %s", ni.Line, name.String(), out.Type()))
+		} else if f := d.settings.unknownField; f != nil {
+			if err := f(ni, name, out); err != nil {
+				d.terrors = append(d.terrors, err.Error())
+			}
 		}
 	}
 

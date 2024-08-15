@@ -1703,6 +1703,7 @@ func (s *S) TestUnmarshalKnownFields(c *C) {
 		t := reflect.ValueOf(item.value).Type()
 		value := reflect.New(t)
 		dec := yaml.NewDecoder(bytes.NewBuffer([]byte(item.data)))
+		//goland:noinspection GoDeprecation
 		dec.KnownFields(item.known)
 		err := dec.Decode(value.Interface())
 		c.Assert(err, ErrorMatches, item.error)
