@@ -1621,6 +1621,11 @@ var unmarshalStrictTests = []struct {
 	value: struct{ A, B int }{A: 1},
 	error: `yaml: unmarshal errors:\n  line 2: field c not found in type struct { A int; B int }`,
 }, {
+	known: true,
+	data:  "i: 1\nj: 2\n",
+	value: customUnmarshaler{I: 2},
+	error: `yaml: unmarshal errors:\n  line 1: field i not found in type yaml_test.bufT`,
+}, {
 	unique: true,
 	data:   "a: 1\nb: 2\na: 3\n",
 	value:  struct{ A, B int }{A: 3, B: 2},
@@ -1710,6 +1715,22 @@ type textUnmarshaler struct {
 
 func (t *textUnmarshaler) UnmarshalText(s []byte) error {
 	t.S = string(s)
+	return nil
+}
+
+type customUnmarshaler struct {
+	I int
+}
+
+func (c *customUnmarshaler) UnmarshalYAML(value *yaml.Node) error {
+	type bufT struct {
+		J int
+	}
+	var buf bufT
+	if err := value.Decode(&buf); err != nil {
+		return err
+	}
+	c.I = buf.J
 	return nil
 }
 
