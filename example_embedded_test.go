@@ -1,4 +1,5 @@
 //
+// Copyright (c) 2024 Engity GmbH
 // Copyright (c) 2011-2019 Canonical Ltd
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,8 +19,6 @@ package yaml_test
 import (
 	"fmt"
 	"log"
-
-	"gopkg.in/yaml.v3"
 )
 
 // An example showing how to unmarshal embedded

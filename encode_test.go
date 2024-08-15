@@ -1,4 +1,5 @@
 //
+// Copyright (c) 2024 Engity GmbH
 // Copyright (c) 2011-2019 Canonical Ltd
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +28,6 @@ import (
 	"os"
 
 	. "gopkg.in/check.v1"
-	"gopkg.in/yaml.v3"
 )
 
 var marshalIntTest = 123

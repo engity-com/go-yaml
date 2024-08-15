@@ -1,4 +1,5 @@
 //
+// Copyright (c) 2024 Engity GmbH
 // Copyright (c) 2011-2019 Canonical Ltd
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,10 +37,13 @@ type parser struct {
 	anchors  map[string]*Node
 	doneInit bool
 	textless bool
+	decoder  *Decoder
 }
 
-func newParser(b []byte) *parser {
-	p := parser{}
+func newParser(b []byte, dec *Decoder) *parser {
+	p := parser{
+		decoder: dec,
+	}
 	if !yaml_parser_initialize(&p.parser) {
 		panic("failed to initialize YAML emitter")
 	}
@@ -50,8 +54,10 @@ func newParser(b []byte) *parser {
 	return &p
 }
 
-func newParserFromReader(r io.Reader) *parser {
-	p := parser{}
+func newParserFromReader(r io.Reader, dec *Decoder) *parser {
+	p := parser{
+		decoder: dec,
+	}
 	if !yaml_parser_initialize(&p.parser) {
 		panic("failed to initialize YAML emitter")
 	}
@@ -178,10 +184,11 @@ func (p *parser) node(kind Kind, defaultTag, tag, value string) *Node {
 		tag, _ = resolve("", value)
 	}
 	n := &Node{
-		Kind:  kind,
-		Tag:   tag,
-		Value: value,
-		Style: style,
+		Kind:    kind,
+		Tag:     tag,
+		Value:   value,
+		Style:   style,
+		decoder: p.decoder,
 	}
 	if !p.textless {
 		n.Line = p.event.start_mark.line + 1

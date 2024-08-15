@@ -3,11 +3,9 @@
 Introduction
 ------------
 
-The yaml package enables Go programs to comfortably encode and decode YAML
-values. It was developed within [Canonical](https://www.canonical.com) as
-part of the [juju](https://juju.ubuntu.com) project, and is based on a
-pure Go port of the well-known [libyaml](http://pyyaml.org/wiki/LibYAML)
-C library to parse and generate YAML data quickly and reliably.
+The yaml package enables Go programs to comfortably encode and decode YAML values.
+It is based on [gopkg.in/yaml.v3](https://gopkg.in/yaml.v3) with some improvements
+as the original project seems to be abandoned.
 
 Compatibility
 -------------
@@ -36,24 +34,18 @@ supported since they're a poor design and are gone in YAML 1.2.
 Installation and usage
 ----------------------
 
-The import path for the package is *gopkg.in/yaml.v3*.
+The import path for the package is *github.com/engity-com/go-yaml*.
 
 To install it, run:
 
-    go get gopkg.in/yaml.v3
+    go get github.com/engity-com/go-yaml
 
 API documentation
 -----------------
 
 If opened in a browser, the import path itself leads to the API documentation:
 
-  - [https://gopkg.in/yaml.v3](https://gopkg.in/yaml.v3)
-
-API stability
--------------
-
-The package API for yaml v3 will remain stable as described in [gopkg.in](https://gopkg.in).
-
+  - [https://github.com/engity-com/go-yaml](https://github.com/engity-com/go-yaml)
 
 License
 -------
@@ -72,7 +64,7 @@ import (
         "fmt"
         "log"
 
-        "gopkg.in/yaml.v3"
+        "github.com/engity-com/go-yaml"
 )
 
 var data = `
